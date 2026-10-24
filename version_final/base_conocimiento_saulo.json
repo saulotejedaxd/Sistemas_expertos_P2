@@ -1,0 +1,13 @@
+{
+  "atomos": {
+    "X1": "saulo hace la tarea",
+    "X2": "reprueba"
+  },
+  "reglas": [
+    {
+      "id": "R1",
+      "texto": "Si saulo no hace la tarea, entonces reprueba",
+      "formula": "¬X1 → X2"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+SISTEMAS EXPERTOS — SAULO JAZIEL TEJEDA VALLE — 23310404
+
+INICIO
+1. Descomprime toda la carpeta.
+2. Abre Iniciar_Saulo.bat. Se abre la INTERFAZ GRÁFICA EN PYTHON.
+3. Requiere Python 3.10 o posterior con Tkinter (incluido habitualmente en Python para Windows).
+Todo el programa está en saulo_sistema_experto.py; no necesita motor.py ni paquetes externos.
+
+USO
+- Base de conocimiento: escribe una regla o hecho por línea y pulsa Analizar y guardar.
+- Se muestran letras y significados, fórmulas y texto original; doble clic en una regla abre su detalle.
+- Construir árbol analiza TODAS las reglas guardadas, suponiéndolas verdaderas.
+- Árbol semántico: azul = expansión, verde = rama abierta, rojo = rama cerrada.
+  ✓ marca la fórmula aplicada. ✕ cierra por un átomo y su negación.
+  Cada nodo añade fórmulas a las de sus antecesores; las expansiones continúan hasta llegar a literales.
+  Clic en nodo muestra las fórmulas completas y, si corresponde, el par contradictorio.
+  La rueda y los botones hacen zoom; arrastra para mover; Ver completo ajusta el árbol a la ventana.
+  Por debajo de 8% se ocultan etiquetas para ver la estructura; al acercar reaparecen.
+- Modelos: cada rama abierta se lista con V, F o Libre. Libre admite ambos valores.
+  La base es insatisfacible cuando todas las ramas se cierran.
+- Exportar base JSON guarda reglas y átomos. Exportar análisis guarda además nodos y modelos.
+- Reiniciar base solicita confirmación. El primer guardado conserva un respaldo .json.bak.
+- El cálculo trabaja en segundo plano; Cancelar cálculo lo interrumpe. Ante límite de 5000 nodos,
+  10 segundos o profundidad excesiva se informa análisis incompleto, sin conclusión definitiva.
+
+CONECTIVOS
+«y» ∧, «o» ∨ (inclusiva), «no» ¬, «si… entonces» →, «si y solo si» ↔.
+También admite símbolos. Prioridad: ¬, ∧, ∨, →, ↔; → se asocia a derecha.
+Usa paréntesis para expresar agrupaciones y condicionales anidados.
+Negación inicial o interna: «no voy a trabajar», «Juan no estudia».
+La misma frase comparte átomo al normalizar espacios y mayúsculas; se conservan los acentos.
+Las frases con sinónimos no se unifican automáticamente.
+Se conserva la heurística original de heredar un único nombre propio escrito con mayúscula;
+con varios sujetos o frases ambiguas, escribe las proposiciones completas.
+
+BASE ANTERIOR
+Incluye tu regla guardada. Los identificadores X1, X2… se convierten a p, q… conservando significados.
+Para evaluar exclusivamente un ejemplo, exporta tu base y reiníciala antes de pegar el ejemplo.
+
+PRUEBA RÁPIDA
+Si es de día, entonces voy a trabajar
+es de día
+voy a trabajar si y solo si preparo mi mochila
+
+Resultado esperado: satisfacible; voy a trabajar y preparo mi mochila verdaderos.
+Añade «no voy a trabajar»: todas las ramas se cierran.
+Prueba_larga.txt contiene 32 líneas; añadir «no el ciclo está autorizado» la hace insatisfacible.
+
+COMPROBACIÓN TÉCNICA
+python -m unittest -v
+Nueve pruebas: expansiones de los cinco conectivos y sus negaciones, 100 bases aleatorias
+comparadas exhaustivamente con tablas de verdad de tres variables, negación interna, sujeto,
+sintaxis inválida, límites/cancelación, caso largo y migración/guardado transaccional.
+
+MODO CONSOLA OPCIONAL
+python saulo_sistema_experto.py --consola
+Comandos :ver, :arbol, :salir. La ejecución normal abre la interfaz gráfica.
+
+Interfaz comprobada en pantalla virtual: apertura, guardado, árbol, pestañas, modelos, zoom, ajuste y cambio de tamaño sin errores de callback. La apariencia exacta de las fuentes depende del sistema operativo.
+
+Corrección de distribución: el panel de entrada mantiene un ancho mínimo de 300 píxeles; las tablas ya no lo colapsan al iniciar ni al cambiar de pestaña.
