@@ -25,52 +25,221 @@ def letra(i):
 def clave(s):return ' '.join(s.casefold().split())
 
 class AnalizadorRecursivo:
-    """Prioridad: negación, conjunción, disyunción, implicación, equivalencia."""
-    patron=re.compile(r'(si\s+y\s+solo\s+si|\bsi\b|\bentonces\b|\by\b|\bo\b|\bno\b|[()¬∧∨→↔])',re.I)
-    def __init__(self,texto,simbolica=False):
-        if len(texto)>15000:raise ValueError('La regla es demasiado larga; divídela en reglas menores.')
-        self.simbolica=simbolica
-        patron=re.compile(r'([()¬∧∨→↔])') if simbolica else self.patron
-        self.tokens=[x.strip(' \t\r\n,.;') for x in patron.split(texto) if x.strip(' \t\r\n,.;')]
-        if not simbolica:
-            cambios={'si y solo si':'↔','y':'∧','o':'∨','no':'¬','si':'SI','entonces':'ENTONCES'}
-            self.tokens=[cambios.get(clave(x),x) for x in self.tokens]
+    """Analizador descendente para español controlado, sin IA.
+
+    Precedencia, de mayor a menor: ¬, ∧, ∨, →, ↔. Los condicionales
+    escritos al inicio usan «si A, entonces B» o «si A, B».
+    Las comillas dobles preservan proposiciones con conectores literales.
+    """
+    ALIASES = (
+        ('si y solo si', '↔'), ('si, y solo si', '↔'),
+        ('si y solamente si', '↔'), ('si y únicamente si', '↔'),
+        ('es equivalente a', '↔'), ('equivale a', '↔'),
+        ('siempre y cuando', 'COND'), ('en caso de que', 'COND'),
+        ('siempre que', 'COND'), ('cuando', 'COND'),
+        ('a menos que', '∨'), ('salvo que', '∨'),
+        ('únicamente si', 'SOLO_SI'), ('solamente si', 'SOLO_SI'),
+        ('solo si', 'SOLO_SI'), ('sólo si', 'SOLO_SI'),
+        ('por lo tanto', '→'), ('por tanto', '→'),
+        ('implica que', '→'), ('implica', '→'),
+        ('es falso que', '¬'), ('no es cierto que', '¬'),
+        ('no es verdad que', '¬'), ('es mentira que', '¬'),
+        ('y además', '∧'), ('así como', '∧'),
+        ('además', '∧'), ('pero', '∧'), ('también', '∧'),
+        ('asimismo', '∧'), ('aunque', '∧'), ('ni', 'NI'),
+        ('o bien', '∨'), ('o', '∨'), ('u', '∨'), ('y', '∧'), ('e', '∧'),
+        ('tampoco', '¬'), ('entonces', 'ENTONCES'),
+        ('si', 'SI'), ('no', '¬'),
+    )
+    _alternativas = sorted(ALIASES, key=lambda p: len(p[0]), reverse=True)
+    _patron_es = re.compile(
+        r'"(?:\\.|[^"\\])*"|[()¬∧∨→↔]|,|(?<!\w)(?:' +
+        '|'.join(re.escape(k).replace(r'\ ', r'\s+') for k, _ in _alternativas) +
+        r')(?!\w)', re.IGNORECASE)
+    _patron_sim = re.compile(r'[()¬∧∨→↔]')
+    _op = {'∧','∨','→','↔','¬','SI','COND','SOLO_SI','ENTONCES','NI','(',')',','}
+
+    def __init__(self, texto, simbolica=False):
+        if len(texto)>15000:
+            raise ValueError('La regla es demasiado larga; divídela en reglas menores.')
+        self.simbolica = simbolica
+        self.tokens = []
+        patron = self._patron_sim if simbolica else self._patron_es
+        pos = 0
+        for m in patron.finditer(texto):
+            self._agregar_atomo(texto[pos:m.start()])
+            raw = m.group()
+            if not simbolica and raw.startswith('"'):
+                # Una proposición entre comillas no se separa aunque contenga «y», «o», etc.
+                self.tokens.append(('ATOMO', raw[1:-1].replace(r'\"', '"')))
+            elif raw == ',':
+                self.tokens.append((',', ','))
+            elif raw in '()¬∧∨→↔':
+                self.tokens.append((raw, raw))
+            else:
+                token = raw if simbolica else next(
+                    v for k,v in self._alternativas if re.fullmatch(k.replace(' ', r'\s+'), raw, re.I)
+                )
+                self.tokens.append((token,raw))
+            pos=m.end()
+        self._agregar_atomo(texto[pos:])
+        # Comas de estilo antes de «entonces», «y», etc., no significan implicación.
         self.pos=0
-    def actual(self):return self.tokens[self.pos] if self.pos<len(self.tokens) else None
-    def tomar(self,esperado=None):
+
+    def _agregar_atomo(self, texto):
+        texto=' '.join(texto.strip(' \t\n\r.;:¡!¿?').split())
+        if texto:
+            self.tokens.append(('ATOMO',texto))
+
+    def actual(self):
+        return self.tokens[self.pos][0] if self.pos<len(self.tokens) else None
+
+    def tomar(self, esperado=None):
         t=self.actual()
-        if t is None or esperado is not None and t!=esperado:
+        if t is None or (esperado is not None and t!=esperado):
             raise ValueError(f"Se esperaba {esperado or 'una proposición'}; apareció {t or 'fin de la regla'}.")
-        self.pos+=1;return t
+        self.pos+=1
+        return self.tokens[self.pos-1][1]
+
+    def _comas_estilo(self):
+        # La coma antes del conector explícito «entonces» o «y» es puntuación.
+        while self.actual()==',' and self.pos+1<len(self.tokens) and self.tokens[self.pos+1][0] in {'ENTONCES','∧','∨','→','↔'}:
+            self.tomar(',')
+
+    def _expresion_desde_tokens(self, tokens):
+        """Analiza una subexpresión conservando los tokens originales y sus comillas."""
+        if not tokens:
+            raise ValueError('Falta una proposición en la regla.')
+        otro=self.__class__.__new__(self.__class__)
+        otro.tokens=list(tokens)
+        otro.pos=0
+        otro.simbolica=self.simbolica
+        return otro.analizar()
+
+    def _conector_inicial(self):
+        """Soporta «Solo si, A, B»: B → A y «Si y solo si, A, B»: A ↔ B.
+
+        La coma anterior a A es opcional; la coma entre A y B es obligatoria.
+        Solo se separa en comas fuera de paréntesis.
+        """
+        tipo=self.tokens[0][0]
+        inicio=1
+        if inicio < len(self.tokens) and self.tokens[inicio][0]==',':
+            inicio+=1
+        profundidad=0
+        separador=None
+        for indice in range(inicio,len(self.tokens)):
+            token=self.tokens[indice][0]
+            if token=='(':
+                profundidad+=1
+            elif token==')':
+                profundidad-=1
+                if profundidad<0:raise ValueError('Paréntesis de cierre sin apertura.')
+            elif token==',' and profundidad==0:
+                if separador is not None:
+                    raise ValueError('El conector inicial requiere dos proposiciones, separadas por una coma.')
+                separador=indice
+        if profundidad!=0:raise ValueError('Paréntesis sin cerrar.')
+        if separador is None:
+            raise ValueError('Escribe «Solo si, condición, consecuencia» o «consecuencia solo si condición».')
+        condicion=self._expresion_desde_tokens(self.tokens[inicio:separador])
+        consecuencia=self._expresion_desde_tokens(self.tokens[separador+1:])
+        if tipo=='SOLO_SI':
+            return Nodo('→',(consecuencia,condicion))
+        return Nodo('↔',(condicion,consecuencia))
+
     def analizar(self):
-        try:n=self.expresion()
-        except RecursionError:raise ValueError('Demasiados paréntesis o negaciones anidados.') from None
-        if self.actual() is not None:raise ValueError(f'Falta un conector o sobra: {self.actual()}')
-        return n
-    def expresion(self,nivel=0):
-        if nivel==4:return self.termino()
-        op=['↔','→','∨','∧'][nivel]
-        n=self.expresion(nivel+1)
-        while self.actual()==op:
-            self.tomar();n=Nodo(op,(n,self.expresion(nivel if op=='→' else nivel+1)))
-        return n
+        try:
+            if not self.simbolica and self.tokens and self.tokens[0][0] in {'SOLO_SI','↔'}:
+                return self._conector_inicial()
+            resultado=self.equivalencia()
+            self._comas_estilo()
+        except RecursionError:
+            raise ValueError('Demasiados paréntesis o negaciones anidados.') from None
+        if self.actual() is not None:
+            raise ValueError(f'Conector sin completar o texto inesperado: {self.actual()}.')
+        return resultado
+
+    def equivalencia(self):
+        a=self.implicacion()
+        while True:
+            self._comas_estilo()
+            if self.actual()!='↔': break
+            self.tomar('↔')
+            a=Nodo('↔',(a,self.implicacion()))
+        return a
+
+    def implicacion(self):
+        a=self.disyuncion()
+        self._comas_estilo()
+        t=self.actual()
+        if t in {'→','SOLO_SI','SI','COND'}:
+            self.tomar()
+            b=self.implicacion()  # Asociatividad derecha.
+            if t in {'SI','COND'}:
+                return Nodo('→',(b,a))  # «A si B» significa B → A.
+            return Nodo('→',(a,b))
+        return a
+
+    def disyuncion(self):
+        a=self.conjuncion()
+        while True:
+            self._comas_estilo()
+            if self.actual()!='∨':break
+            self.tomar('∨')
+            a=Nodo('∨',(a,self.conjuncion()))
+        return a
+
+    def conjuncion(self):
+        a=self.termino()
+        while True:
+            self._comas_estilo()
+            if self.actual() not in {'∧','NI'}:break
+            t=self.actual();self.tomar()
+            b=self.termino()
+            a=Nodo('∧',(a,negar(b) if t=='NI' else b))
+        return a
+
     def termino(self):
-        t=self.tomar()
-        if t=='¬':return negar(self.termino())
-        if t=='SI':
-            a=self.expresion();self.tomar('ENTONCES');return Nodo('→',(a,self.expresion()))
+        t=self.actual()
+        if t is None:
+            raise ValueError('Falta una proposición al final de la regla.')
+        if t in {'¬','NI'}:
+            self.tomar()
+            return negar(self.termino())
+        if t in {'SI','COND'}:
+            self.tomar()
+            antecedente=self.equivalencia()
+            # Antecedente termina ante «entonces» o la coma separadora.
+            if self.actual()=='ENTONCES':
+                self.tomar('ENTONCES')
+            elif self.actual()==',':
+                self.tomar(',')
+                if self.actual()=='ENTONCES':self.tomar('ENTONCES')
+            else:
+                raise ValueError('En «si/cuando ...» separa condición y resultado con «entonces» o una coma.')
+            consecuencia=self.equivalencia()
+            return Nodo('→',(antecedente,consecuencia))
         if t=='(':
-            n=self.expresion();self.tomar(')');return n
-        if t in {'∧','∨','→','↔',')','ENTONCES'}:raise ValueError('Conector sin proposición: '+t)
+            self.tomar('(')
+            a=self.equivalencia()
+            self.tomar(')')
+            return a
+        if t!='ATOMO':
+            raise ValueError('Conector sin proposición: '+str(t))
+        nombre=self.tomar('ATOMO')
         if self.simbolica:
-            if not re.fullmatch(r'[a-z]\d*|X\d+',t):raise ValueError('Identificador inválido: '+t)
-            return Nodo(t)
-        # «Juan no estudia» y «no Juan estudia» comparten átomo.
+            if not re.fullmatch(r'[a-z]\d*|X\d+',nombre):
+                raise ValueError('Identificador simbólico inválido: '+nombre)
+            return Nodo(nombre)
+        # «Juan no estudia» equivale a ¬(Juan estudia).
         if self.actual()=='¬':
-            self.tomar();s=self.tomar()
-            if s in {'¬','∧','∨','→','↔','SI','ENTONCES','(',')'}:raise ValueError('Negación interna incompleta.')
-            return negar(Nodo(' '.join((t+' '+s).split())))
-        return Nodo(' '.join(t.split()))
+            self.tomar('¬')
+            if self.actual()!='ATOMO':
+                raise ValueError('Después de una negación interna falta una acción.')
+            accion=self.tomar('ATOMO')
+            return negar(Nodo(' '.join((nombre+' '+accion).split())))
+        return Nodo(nombre)
 
 def hojas(n):
     if not n.hijos:return [n.op]
@@ -111,7 +280,8 @@ class BaseDeConocimiento:
         atoms=self.atomos.copy();catalogo={clave(v):k for k,v in atoms.items()};nuevas=[]
         for numero,linea in enumerate(lines,1):
             try:
-                n=AnalizadorRecursivo(linea).analizar()
+                analizador=AnalizadorRecursivo(linea)
+                n=analizador.analizar()
                 nombres={sujeto(s) for s in hojas(n) if sujeto(s)}
                 persona=next(iter(nombres)) if len(nombres)==1 else None
                 def registrar(s):
@@ -122,6 +292,20 @@ class BaseDeConocimiento:
                         while letra(i) in atoms:i+=1
                         catalogo[k]=letra(i);atoms[letra(i)]=s
                     return catalogo[k]
+                # Asigna letras según la primera aparición en el TEXTO, no
+                # según el orden de los operandos del árbol (que se invierte
+                # para la construcción «Solo si, B, A» y «A si B»).
+                tokens=analizador.tokens
+                indice=0
+                while indice<len(tokens):
+                    if tokens[indice][0]=='ATOMO':
+                        frase=tokens[indice][1]
+                        if (indice+2<len(tokens) and tokens[indice+1][0]=='¬'
+                                and tokens[indice+2][0]=='ATOMO'):
+                            frase+=' '+tokens[indice+2][1]
+                            indice+=2
+                        registrar(frase)
+                    indice+=1
                 n=transformar(n,registrar)
                 nuevas.append({'id':f'R{len(self.reglas)+len(nuevas)+1}','texto':linea,'formula':formula(n)})
             except (ValueError,RecursionError) as e:raise ValueError(f'Línea {numero}: {e}') from None
@@ -279,7 +463,7 @@ class Aplicacion(tk.Tk):
         tk.Label(side,text='SAULO',font=('Segoe UI',29,'bold'),bg=PANEL,fg=ACCENT).pack(anchor='w',padx=22,pady=(30,0))
         tk.Label(side,text='SISTEMAS EXPERTOS\nRegistro 23310404',font=('Segoe UI',11),justify='left',bg=PANEL,fg=TEXT).pack(anchor='w',padx=24,pady=(4,25))
         self.buttons=[]
-        for label,fn in [('Analizar y guardar',self.analizar),('Construir árbol',self.construir),('Cargar ejemplos',self.ejemplos),('Exportar base JSON',self.exportar_base),('Exportar análisis',self.exportar_analisis),('Reiniciar base',self.reiniciar)]:
+        for label,fn in [('Analizar y guardar',self.analizar),('Construir árbol',self.construir),('Abrir reglas .txt',self.abrir_texto),('Ver conectores',self.ver_conectores),('Cargar ejemplos',self.ejemplos),('Exportar base JSON',self.exportar_base),('Exportar análisis',self.exportar_analisis),('Reiniciar base',self.reiniciar)]:
             b=ttk.Button(side,text=label,command=fn,style='Accent.TButton' if label=='Construir árbol' else 'TButton');b.pack(fill='x',padx=18,pady=5);self.buttons.append(b)
         ttk.Button(side,text='Cancelar cálculo',command=self.cancelar.set).pack(fill='x',padx=18,pady=5)
         self.contador=tk.StringVar();tk.Label(side,textvariable=self.contador,bg=PANEL,fg=ACCENT,justify='left',font=('Segoe UI',12,'bold')).pack(anchor='w',padx=24,pady=20)
@@ -302,10 +486,10 @@ class Aplicacion(tk.Tk):
         editor.pack_propagate(False);results.pack_propagate(False)
         editor.grid(row=0,column=0,sticky='nsew');results.grid(row=0,column=1,sticky='nsew')
         ttk.Label(editor,text='ENTRADA EN ESPAÑOL',foreground=ACCENT,font=('Segoe UI',11,'bold')).pack(anchor='w',pady=(0,8))
-        ttk.Label(editor,text='Una regla o hecho por línea.\nUsa paréntesis para agrupar condiciones.',foreground=MUTED).pack(anchor='w')
+        ttk.Label(editor,text='Una regla o hecho por línea. Se admiten Y, O, NO, SI, SI Y SOLO SI,\nCUANDO, IMPLICA, SOLO SI, A MENOS QUE y expresiones equivalentes.',foreground=MUTED,wraplength=340).pack(anchor='w')
         self.entrada=caja(editor,height=14,width=34,wrap='word');self.entrada.pack(fill='both',expand=True,pady=10,padx=(0,12))
         ttk.Button(editor,text='Vaciar entrada',command=lambda:self.entrada.delete('1.0','end')).pack(anchor='w')
-        ttk.Label(editor,text='Ejemplo: Si es de día, entonces voy a trabajar',wraplength=310,foreground=MUTED).pack(anchor='w',pady=12)
+        ttk.Label(editor,text='Ejemplos: «Si llueve, llevo paraguas»; «Trabajo si estudio»; «Llueve o nieva».\nUsa comillas si el texto del átomo contiene «y» u «o» literal.',wraplength=320,foreground=MUTED).pack(anchor='w',pady=12)
         vertical=ttk.Panedwindow(results,orient='vertical');vertical.pack(fill='both',expand=True)
         a=ttk.Frame(vertical);r=ttk.Frame(vertical);vertical.add(a,weight=1);vertical.add(r,weight=2)
         ttk.Label(a,text='ÁTOMOS',foreground=ACCENT).pack(anchor='w',pady=5);self.atomos=tabla(a,('Letra','Proposición'),(65,500))
@@ -331,8 +515,55 @@ class Aplicacion(tk.Tk):
         self.invalidar();self.actualizar();self.entrada.delete('1.0','end');self.estado.set(f'{len(nuevas)} reglas guardadas. Puedes construir el árbol de la base completa.')
     def ejemplos(self):
         if self.trabajando:return
-        self.entrada.delete('1.0','end');self.entrada.insert('1.0','Si es de día, entonces voy a trabajar\nes de día\nvoy a trabajar si y solo si preparo mi mochila\nno (llueve y hace frío)')
+        self.entrada.delete('1.0','end')
+        self.entrada.insert('1.0',
+            'Si Juan estudia y entrega la tarea, entonces aprueba el examen\n'
+            'Juan estudia\n'
+            'Juan entrega la tarea\n'
+            'Juan aprueba el examen si y solo si Juan obtiene una calificación aprobatoria\n'
+            'no Juan reprueba el examen\n'
+            'Juan recibe su certificado solo si Juan aprueba el examen\n'
+            'Juan hace práctica o bien Juan realiza proyecto')
         self.tabs.select(self.tab_base)
+
+    def abrir_texto(self):
+        if self.trabajando:return
+        destino=filedialog.askopenfilename(title='Abrir reglas',filetypes=[('Texto plano','*.txt'),('Todos','*.*')])
+        if not destino:return
+        try:
+            contenido=Path(destino).read_text(encoding='utf-8-sig')
+        except (OSError,UnicodeError) as e:
+            messagebox.showerror('Error al abrir TXT',str(e));return
+        self.entrada.delete('1.0','end');self.entrada.insert('1.0',contenido)
+        self.tabs.select(self.tab_base)
+        self.estado.set('TXT cargado en el editor. Revisa el texto y pulsa Analizar y guardar.')
+
+    def ver_conectores(self):
+        mensaje=(
+            'CONJUNCIÓN (∧): y, e, además, pero, aunque, asimismo, así como.\n'
+            'Ejemplo: llueve y hace frío\n\n'
+            'DISYUNCIÓN (∨): o, u, o bien, a menos que, salvo que.\n'
+            'Ejemplo: llueve o nieva\n\n'
+            'NEGACIÓN (¬): no, tampoco, es falso que, no es cierto que.\n'
+            'Ejemplo: Juan no estudia   /   no (llueve o nieva)\n\n'
+            'IMPLICACIÓN (→):\n'
+            'Si A entonces B   =   A → B\n'
+            'Si A, B             =   A → B\n'
+            'Cuando A, B         =   A → B\n'
+            'A implica B         =   A → B\n'
+            'A si B              =   B → A\n'
+            'A solo si B         =   A → B\n'
+            'Solo si, B, A       =   A → B\n'
+            'Solo si B, A        =   A → B\n\n'
+            'BICONDICIONAL (↔): si y solo si, equivale a.\n'
+            'Ejemplo: A si y solo si B\n\n'
+            'PARENTESIS: no (llueve y hace frío)\n'
+            'COMILLAS: "Juan y María estudian" o "Juan descansa"\n\n'
+            'El analizador usa español controlado: algunas oraciones ambiguas\n'
+            'requieren paréntesis o reescritura. Las expresiones «a menos que»\n'
+            'y «salvo que» se interpretan como disyunción inclusiva.')
+        messagebox.showinfo('Guía de conectores admitidos',mensaje)
+
     def construir(self):
         if self.trabajando:return
         if self.entrada.get('1.0','end').strip():

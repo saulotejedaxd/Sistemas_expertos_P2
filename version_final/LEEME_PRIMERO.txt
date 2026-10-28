@@ -1,0 +1,80 @@
+SISTEMAS EXPERTOS — SAULO JAZIEL TEJEDA VALLE (23310404)
+VERSIÓN CORREGIDA: MÁS CONECTORES EN ESPAÑOL
+
+INICIO EN WINDOWS
+1. Extrae TODO el ZIP en una carpeta.
+2. Abre Iniciar_Saulo.bat.
+3. Necesitas Python 3.10+ y Tkinter (habitualmente incluido en Windows).
+No instala paquetes ni utiliza IA o internet.
+
+USO
+- Abre la interfaz gráfica oscura.
+- Escribe una oración o regla por línea; también puedes usar «Abrir reglas .txt».
+- Pulsa «Analizar y guardar». La tabla mostrará las proposiciones y fórmulas.
+- Pulsa «Construir árbol» para analizar TODA la base guardada.
+- En «Árbol semántico» se muestran expansiones y ramas verdes/rojas.
+- En «Modelos» se ven átomos verdaderos, falsos o libres.
+- «Ver conectores» dentro de la app muestra la sintaxis admitida.
+- «Cargar ejemplos» agrega ejemplos al EDITOR, no a la base hasta que guardes.
+- «Ejemplos_Conectores.txt» contiene 10 reglas mezcladas para una demostración.
+
+CONECTORES PRINCIPALES / SINÓNIMOS ADMITIDOS
+Y (∧): "y", "e", "además", "pero", "aunque", "así como", "asimismo".
+O (∨): "o", "u", "o bien". También "a menos que" y "salvo que" se
+       interpretan como disyunción INCLUSIVA de lógica material (A ∨ B).
+NO (¬): "no", "tampoco", "es falso que", "no es cierto que", "no es verdad que".
+       «Juan no estudia» representa la negación de «Juan estudia».
+       «no (A o B)» permite negar expresiones compuestas.
+IMPLICACIÓN (→):
+  Si A, entonces B      => A → B
+  Si A entonces B       => A → B
+  Si A, B               => A → B
+  Cuando A, B           => A → B
+  Siempre que A, B      => A → B
+  En caso de que A, B   => A → B
+  A implica B           => A → B
+  A, por lo tanto B     => A → B (simplificación proposicional)
+  A si B                => B → A (ATENCIÓN: cambia el orden)
+  A solo si B           => A → B (ATENCIÓN: no es lo mismo que «A si B»)
+BICONDICIONAL (↔):
+  A si y solo si B       => A ↔ B
+  A equivale a B        => A ↔ B
+
+REGLAS DE ESCRITURA
+- Usa una regla/hecho por línea, con condiciones completas.
+- Usa paréntesis para desambiguar: "Si (A y B), entonces (C o D)".
+- Si un átomo INCLUYE las palabras literales «y» u «o», ponlo entre comillas:
+    "Juan y María estudian" o Juan descansa
+- El programa no es un traductor universal de español: reconoce una gramática
+  controlada. No reconoce sinónimos de acciones ni expresiones ambiguas de forma
+  automática. La misma frase (ignorando mayúsculas/espacios) conserva su letra.
+- El árbol asume verdaderas TODAS las reglas: su cierre indica que no existe
+  asignación que las satisfaga simultáneamente. Las ramas abiertas son modelos
+  parciales y los valores "Libre" pueden ser V o F.
+- Ante límite de complejidad o cancelación, NO concluye que sea insatisfacible.
+
+BASE DE CONOCIMIENTO
+- Se conserva base_conocimiento_saulo.json tal como llegó en el ZIP adjunto.
+- Si ya contenía reglas, aparecerán al abrir el programa.
+- Guardar puede crear una copia .json.bak la primera vez que cambies la base.
+- Para una prueba limpia, usa «Reiniciar base» (¡¡BORRA los registros actuales!!).
+  Antes puedes exportar JSON y/o hacer una copia del archivo original.
+
+PRUEBAS
+Ejecutar en la carpeta:  python -m unittest discover -v
+También puedes comprobar la GUI con Python y una pantalla disponible.
+Las pruebas incluyen las expansiones de tableaux y comparaciones con tablas
+verdad, 10 reglas de prueba, condicionales en los dos sentidos y negaciones.
+
+LÍMITES
+Python estándar + Tkinter. Árbol limitado a 5000 nodos o 10 s por análisis.
+Un tamaño excesivo puede detener el análisis sin emitir un dictamen definitivo.
+TXT y JSON tienen datos locales. No se requiere ni se usa un SAT Solver externo.
+
+CORRECCIÓN DE «SOLO SI» AL INICIO (27/10/2026)
+- «Solo si, estudio para el examen, apruebo» se interpreta «apruebo → estudio para el examen».
+- También acepta «Solo si estudio para el examen, apruebo».
+- «Apruebo solo si estudio para el examen» tiene el mismo significado.
+- «Si estudio para el examen, entonces apruebo» tiene la flecha inversa: estudiar → aprobar.
+- Se admiten subexpresiones con paréntesis en los argumentos de «Solo si».
+- También se admite «Si y solo si, A, B» como bicondicional A ↔ B.

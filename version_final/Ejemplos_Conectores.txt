@@ -1,0 +1,13 @@
+Si Juan estudia y Juan entrega la tarea, entonces Juan aprueba el examen
+Juan estudia
+Juan entrega la tarea
+Cuando Juan aprueba el examen, Juan recibe su certificado
+Juan recibe su certificado si y solo si Juan cumple los requisitos
+Juan solicita asesoría o bien Juan participa en tutoría
+Juan recibe beca solo si Juan entrega documentación
+es falso que Juan reprueba el examen
+Juan revisa los apuntes además Juan hace ejercicios
+Juan se prepara a menos que Juan esté enfermo
+
+Solo si, estudio para el examen, apruebo
+Apruebo solo si estudio para el examen

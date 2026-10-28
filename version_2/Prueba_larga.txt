@@ -1,0 +1,32 @@
+hay energía eléctrica
+el interruptor principal está encendido
+el botón de emergencia está liberado
+la guarda de seguridad está cerrada
+hay presión de aire
+hay una pieza en la estación
+el sensor detecta la pieza
+la cámara está lista
+el robot está en posición inicial
+no hay una falla activa
+Si hay energía eléctrica y el interruptor principal está encendido, entonces el tablero está energizado
+Si el botón de emergencia está liberado y la guarda de seguridad está cerrada, entonces el circuito de seguridad está habilitado
+Si el tablero está energizado y el circuito de seguridad está habilitado, entonces el controlador está listo
+Si hay presión de aire y hay una pieza en la estación, entonces el cilindro puede sujetar la pieza
+Si el cilindro puede sujetar la pieza y el sensor detecta la pieza, entonces la pieza está preparada
+Si la cámara está lista y la pieza está preparada, entonces la inspección puede comenzar
+Si el controlador está listo y (la inspección puede comenzar y el robot está en posición inicial), entonces el ciclo está autorizado
+Si el ciclo está autorizado y no hay una falla activa, entonces el robot puede iniciar el movimiento
+el indicador verde está encendido si y solo si el ciclo está autorizado
+Si el robot puede iniciar el movimiento, entonces el sistema registra el inicio del ciclo
+Si el sistema registra el inicio del ciclo, entonces el historial está actualizado
+Si hay una falla activa, entonces el indicador rojo está encendido
+Si el indicador rojo está encendido, entonces no el robot puede iniciar el movimiento
+Si no hay energía eléctrica, entonces no el tablero está energizado
+Si no la guarda de seguridad está cerrada, entonces no el circuito de seguridad está habilitado
+la pieza cumple la tolerancia o la pieza requiere retrabajo
+Si la pieza cumple la tolerancia, entonces el resultado de inspección es aceptado
+Si la pieza requiere retrabajo, entonces el resultado de inspección es rechazado
+Si el resultado de inspección es aceptado, entonces la pieza pasa a la estación siguiente
+Si el resultado de inspección es rechazado, entonces la pieza pasa a revisión manual
+no (el resultado de inspección es aceptado y el resultado de inspección es rechazado)
+Si la pieza pasa a la estación siguiente o la pieza pasa a revisión manual, entonces la pieza tiene un destino asignado

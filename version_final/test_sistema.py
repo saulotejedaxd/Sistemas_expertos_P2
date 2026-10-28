@@ -31,7 +31,7 @@ class Pruebas(unittest.TestCase):
    self.assertEqual(list(b.atomos.values()),['Juan estudia','Juan entrega la tarea','Juan aprueba el examen']);self.assertEqual(b.reglas[-1]['formula'],'¬p')
  def test_migracion_transaccion(self):
   with tempfile.TemporaryDirectory() as d:
-   p=Path(d)/'b.json';p.write_text(Path(__file__).with_name('base_conocimiento_saulo.json').read_text())
+   p=Path(d)/'b.json';p.write_text(json.dumps({'atomos':{'X1':'saulo hace la tarea','X2':'reprueba'},'reglas':[{'id':'R1','texto':'Si saulo no hace la tarea, entonces reprueba','formula':'¬X1 → X2'}]},ensure_ascii=False))
    b=BaseDeConocimiento(p);self.assertEqual(b.reglas[0]['formula'],'(¬p → q)');b.agregar('es de día');before=p.read_bytes()
    with self.assertRaises(ValueError):b.agregar_lote('llueve\nSi algo')
    self.assertEqual(before,p.read_bytes());self.assertEqual(BaseDeConocimiento(p).atomos,b.atomos)

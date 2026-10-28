@@ -1,13 +1,195 @@
 {
   "atomos": {
-    "X1": "saulo hace la tarea",
-    "X2": "reprueba"
+    "p": "hay energía eléctrica",
+    "q": "el interruptor principal está encendido",
+    "r": "el botón de emergencia está liberado",
+    "s": "la guarda de seguridad está cerrada",
+    "t": "hay presión de aire",
+    "u": "hay una pieza en la estación",
+    "v": "el sensor detecta la pieza",
+    "w": "la cámara está lista",
+    "x": "el robot está en posición inicial",
+    "y": "hay una falla activa",
+    "z": "el tablero está energizado",
+    "a": "el circuito de seguridad está habilitado",
+    "b": "el controlador está listo",
+    "c": "el cilindro puede sujetar la pieza",
+    "d": "la pieza está preparada",
+    "e": "la inspección puede comenzar",
+    "f": "el ciclo está autorizado",
+    "g": "el robot puede iniciar el movimiento",
+    "h": "el indicador verde está encendido",
+    "i": "el sistema registra el inicio del ciclo",
+    "j": "el historial está actualizado",
+    "k": "el indicador rojo está encendido",
+    "l": "la pieza cumple la tolerancia",
+    "m": "la pieza requiere retrabajo",
+    "n": "el resultado de inspección es aceptado",
+    "o": "el resultado de inspección es rechazado",
+    "p2": "la pieza pasa a la estación siguiente",
+    "q2": "la pieza pasa a revisión manual",
+    "r2": "la pieza tiene un destino asignado"
   },
   "reglas": [
     {
       "id": "R1",
-      "texto": "Si saulo no hace la tarea, entonces reprueba",
-      "formula": "¬X1 → X2"
+      "texto": "hay energía eléctrica",
+      "formula": "p"
+    },
+    {
+      "id": "R2",
+      "texto": "el interruptor principal está encendido",
+      "formula": "q"
+    },
+    {
+      "id": "R3",
+      "texto": "el botón de emergencia está liberado",
+      "formula": "r"
+    },
+    {
+      "id": "R4",
+      "texto": "la guarda de seguridad está cerrada",
+      "formula": "s"
+    },
+    {
+      "id": "R5",
+      "texto": "hay presión de aire",
+      "formula": "t"
+    },
+    {
+      "id": "R6",
+      "texto": "hay una pieza en la estación",
+      "formula": "u"
+    },
+    {
+      "id": "R7",
+      "texto": "el sensor detecta la pieza",
+      "formula": "v"
+    },
+    {
+      "id": "R8",
+      "texto": "la cámara está lista",
+      "formula": "w"
+    },
+    {
+      "id": "R9",
+      "texto": "el robot está en posición inicial",
+      "formula": "x"
+    },
+    {
+      "id": "R10",
+      "texto": "no hay una falla activa",
+      "formula": "¬y"
+    },
+    {
+      "id": "R11",
+      "texto": "Si hay energía eléctrica y el interruptor principal está encendido, entonces el tablero está energizado",
+      "formula": "((p ∧ q) → z)"
+    },
+    {
+      "id": "R12",
+      "texto": "Si el botón de emergencia está liberado y la guarda de seguridad está cerrada, entonces el circuito de seguridad está habilitado",
+      "formula": "((r ∧ s) → a)"
+    },
+    {
+      "id": "R13",
+      "texto": "Si el tablero está energizado y el circuito de seguridad está habilitado, entonces el controlador está listo",
+      "formula": "((z ∧ a) → b)"
+    },
+    {
+      "id": "R14",
+      "texto": "Si hay presión de aire y hay una pieza en la estación, entonces el cilindro puede sujetar la pieza",
+      "formula": "((t ∧ u) → c)"
+    },
+    {
+      "id": "R15",
+      "texto": "Si el cilindro puede sujetar la pieza y el sensor detecta la pieza, entonces la pieza está preparada",
+      "formula": "((c ∧ v) → d)"
+    },
+    {
+      "id": "R16",
+      "texto": "Si la cámara está lista y la pieza está preparada, entonces la inspección puede comenzar",
+      "formula": "((w ∧ d) → e)"
+    },
+    {
+      "id": "R17",
+      "texto": "Si el controlador está listo y (la inspección puede comenzar y el robot está en posición inicial), entonces el ciclo está autorizado",
+      "formula": "((b ∧ (e ∧ x)) → f)"
+    },
+    {
+      "id": "R18",
+      "texto": "Si el ciclo está autorizado y no hay una falla activa, entonces el robot puede iniciar el movimiento",
+      "formula": "((f ∧ ¬y) → g)"
+    },
+    {
+      "id": "R19",
+      "texto": "el indicador verde está encendido si y solo si el ciclo está autorizado",
+      "formula": "(h ↔ f)"
+    },
+    {
+      "id": "R20",
+      "texto": "Si el robot puede iniciar el movimiento, entonces el sistema registra el inicio del ciclo",
+      "formula": "(g → i)"
+    },
+    {
+      "id": "R21",
+      "texto": "Si el sistema registra el inicio del ciclo, entonces el historial está actualizado",
+      "formula": "(i → j)"
+    },
+    {
+      "id": "R22",
+      "texto": "Si hay una falla activa, entonces el indicador rojo está encendido",
+      "formula": "(y → k)"
+    },
+    {
+      "id": "R23",
+      "texto": "Si el indicador rojo está encendido, entonces no el robot puede iniciar el movimiento",
+      "formula": "(k → ¬g)"
+    },
+    {
+      "id": "R24",
+      "texto": "Si no hay energía eléctrica, entonces no el tablero está energizado",
+      "formula": "(¬p → ¬z)"
+    },
+    {
+      "id": "R25",
+      "texto": "Si no la guarda de seguridad está cerrada, entonces no el circuito de seguridad está habilitado",
+      "formula": "(¬s → ¬a)"
+    },
+    {
+      "id": "R26",
+      "texto": "la pieza cumple la tolerancia o la pieza requiere retrabajo",
+      "formula": "(l ∨ m)"
+    },
+    {
+      "id": "R27",
+      "texto": "Si la pieza cumple la tolerancia, entonces el resultado de inspección es aceptado",
+      "formula": "(l → n)"
+    },
+    {
+      "id": "R28",
+      "texto": "Si la pieza requiere retrabajo, entonces el resultado de inspección es rechazado",
+      "formula": "(m → o)"
+    },
+    {
+      "id": "R29",
+      "texto": "Si el resultado de inspección es aceptado, entonces la pieza pasa a la estación siguiente",
+      "formula": "(n → p2)"
+    },
+    {
+      "id": "R30",
+      "texto": "Si el resultado de inspección es rechazado, entonces la pieza pasa a revisión manual",
+      "formula": "(o → q2)"
+    },
+    {
+      "id": "R31",
+      "texto": "no (el resultado de inspección es aceptado y el resultado de inspección es rechazado)",
+      "formula": "¬(n ∧ o)"
+    },
+    {
+      "id": "R32",
+      "texto": "Si la pieza pasa a la estación siguiente o la pieza pasa a revisión manual, entonces la pieza tiene un destino asignado",
+      "formula": "((p2 ∨ q2) → r2)"
     }
   ]
 }
